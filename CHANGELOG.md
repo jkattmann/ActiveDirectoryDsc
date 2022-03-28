@@ -9,6 +9,9 @@ For older change log history see the [historic changelog](HISTORIC_CHANGELOG.md)
 
 ### Changed
 
+- ADDomainController
+  - Add retry logic to Get-TargetResource Get-ADDomain command.
+
 - ActiveDirectoryDsc
   - Pin All RequiredModules versions and Add 'Sampler.GitHubTasks'.
 

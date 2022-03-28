@@ -57,15 +57,42 @@ function Get-TargetResource
 
     Write-Verbose -Message ($script:localizedData.ResolveDomainName -f $DomainName)
 
-    try
+    $retries = 0
+    $maxRetries = 15
+    $retryIntervalInSeconds = 30
+
+    do
     {
-        $domain = Get-ADDomain -Identity $DomainName -Credential $Credential
-    }
-    catch
-    {
-        $errorMessage = $script:localizedData.MissingDomain -f $DomainName
-        New-ObjectNotFoundException -Message $errorMessage -ErrorRecord $_
-    }
+        $domainFound = $true
+        try
+        {
+            $domain = Get-ADDomain -Identity $DomainName -Credential $Credential -ErrorAction Stop
+        }
+        catch [Microsoft.ActiveDirectory.Management.ADServerDownException], `
+            [System.Security.Authentication.AuthenticationException], `
+            [System.InvalidOperationException], `
+            [System.ArgumentException]
+        {
+            Write-Verbose ($script:localizedData.ADServerNotReady -f $DomainName)
+            $domainFound = $false
+            # will fall into the retry mechanism.
+        }
+        catch
+        {
+            $errorMessage = $script:localizedData.GetAdDomainUnexpectedError -f $DomainName
+            New-InvalidOperationException -Message $errorMessage -ErrorRecord $_
+        }
+
+        if (-not $domainFound)
+        {
+            $retries++
+
+            Write-Verbose ($script:localizedData.RetryingGetADDomain -f
+                    $retries, $maxRetries, $retryIntervalInSeconds)
+
+            Start-Sleep -Seconds $retryIntervalInSeconds
+        }
+    } while ((-not $domainFound) -and $retries -lt $maxRetries)
 
     Write-Verbose -Message ($script:localizedData.DomainPresent -f $DomainName)
 
